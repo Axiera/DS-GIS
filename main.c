@@ -1,6 +1,7 @@
 #include <SDL2/SDL.h>
 #include <windows.h>
 #include <stdlib.h>
+#include "headers/http.h"
 
 const char TITLE[7] = "DS GIS";
 const int WINDOW_WIDTH = 720;
@@ -57,10 +58,18 @@ int init(SDL_Window** window, SDL_Renderer** renderer) {
         return 1;
     }
 
+    if (http_init()) {
+        SDL_DestroyRenderer(*renderer);
+        SDL_DestroyWindow(*window);
+        SDL_Quit();
+        return 1;
+    }
+
     return 0;
 }
 
 void deinit(SDL_Window* window, SDL_Renderer* renderer) {
+    http_deinit();
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
