@@ -1,4 +1,5 @@
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_Image.h>
 #include <windows.h>
 #include <stdlib.h>
 #include "headers/http.h"
@@ -39,6 +40,12 @@ int init(SDL_Window** window, SDL_Renderer** renderer) {
     if (SDL_Init(SDL_INIT_VIDEO))
         return 1;
 
+    if (!IMG_Init(IMG_INIT_JPG)) {
+        SDL_SetError(IMG_GetError());
+        SDL_Quit();
+        return 1;
+    }
+
     *window = SDL_CreateWindow(
         TITLE,
         SDL_WINDOWPOS_UNDEFINED,
@@ -47,6 +54,7 @@ int init(SDL_Window** window, SDL_Renderer** renderer) {
         WINDOW_HEIGHT,
         SDL_WINDOW_MAXIMIZED | SDL_WINDOW_RESIZABLE);
     if (window == NULL) {
+        IMG_Quit();
         SDL_Quit();
         return 1;
     }
@@ -54,6 +62,7 @@ int init(SDL_Window** window, SDL_Renderer** renderer) {
     *renderer = SDL_CreateRenderer(*window, -1, SDL_RENDERER_ACCELERATED);
     if (renderer == NULL) {
         SDL_DestroyWindow(*window);
+        IMG_Quit();
         SDL_Quit();
         return 1;
     }
@@ -61,6 +70,7 @@ int init(SDL_Window** window, SDL_Renderer** renderer) {
     if (http_init()) {
         SDL_DestroyRenderer(*renderer);
         SDL_DestroyWindow(*window);
+        IMG_Quit();
         SDL_Quit();
         return 1;
     }
@@ -72,5 +82,6 @@ void deinit(SDL_Window* window, SDL_Renderer* renderer) {
     http_deinit();
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
+    IMG_Quit();
     SDL_Quit();
 }
