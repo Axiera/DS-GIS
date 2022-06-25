@@ -2,41 +2,63 @@
 #include <SDL2/SDL_Image.h>
 #include <windows.h>
 #include <stdlib.h>
+
 #include "headers/http.h"
+#include "headers/map.h"
 
-const char TITLE[7] = "DS GIS";
-const int WINDOW_WIDTH = 720;
-const int WINDOW_HEIGHT = 400;
+const char   TITLE[7]              = "DS GIS";
+const int    INITIAL_WINDOW_WIDTH  = 720;
+const int    INITIAL_WINDOW_HEIGHT = 400;
+const double INITIAL_LATITUDE      = 62.779147;
+const double INITIAL_LONGITUDE     = 40.334442;
+const Uint8  INITIAL_ZOOM          = 15;
 
-int init(SDL_Window** window, SDL_Renderer** renderer);
-void deinit(SDL_Window* window, SDL_Renderer* renderer);
+int init(SDL_Window** window, SDL_Renderer** renderer, map_t** map);
+void deinit(SDL_Window* window, SDL_Renderer* renderer, map_t* map);
 
 int main(int argc, char* argv[]) {
     SDL_Window* window = NULL;
     SDL_Renderer* renderer = NULL;
-    if (init(&window, &renderer)) {
+    map_t* map = NULL;
+    if (init(&window, &renderer, &map)) {
         MessageBox(GetActiveWindow(), SDL_GetError(), NULL, MB_OK);
         exit(EXIT_FAILURE);
     }
+
+    int window_width = INITIAL_WINDOW_WIDTH;
+    int window_height = INITIAL_WINDOW_HEIGHT;
 
     int event_received_successfully;
     SDL_Event event;
     while (event_received_successfully = SDL_WaitEvent(&event)) {
-        if (event.type == SDL_QUIT)
+        map_handle_event(map, &event);
+
+        if (event.type == SDL_QUIT) {
             break;
+        } else if (event.type == SDL_WINDOWEVENT) {
+            if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
+                window_width = event.window.data1;
+                window_height = event.window.data2;
+            }
+        }
+
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+        SDL_RenderClear(renderer);
+        map_draw(map, &(SDL_Rect){ 0, 0, window_width, window_height });
+        SDL_RenderPresent(renderer);
     }
 
     if (!event_received_successfully) {
         MessageBox(GetActiveWindow(), SDL_GetError(), NULL, MB_OK);
-        deinit(window, renderer);
+        deinit(window, renderer, map);
         exit(EXIT_FAILURE);
     }
 
-    deinit(window, renderer);
+    deinit(window, renderer, map);
     return 0;
 }
 
-int init(SDL_Window** window, SDL_Renderer** renderer) {
+int init(SDL_Window** window, SDL_Renderer** renderer, map_t** map) {
     if (SDL_Init(SDL_INIT_VIDEO))
         return 1;
 
@@ -50,8 +72,8 @@ int init(SDL_Window** window, SDL_Renderer** renderer) {
         TITLE,
         SDL_WINDOWPOS_UNDEFINED,
         SDL_WINDOWPOS_UNDEFINED,
-        WINDOW_WIDTH,
-        WINDOW_HEIGHT,
+        INITIAL_WINDOW_WIDTH,
+        INITIAL_WINDOW_HEIGHT,
         SDL_WINDOW_MAXIMIZED | SDL_WINDOW_RESIZABLE);
     if (window == NULL) {
         IMG_Quit();
@@ -75,10 +97,22 @@ int init(SDL_Window** window, SDL_Renderer** renderer) {
         return 1;
     }
 
+    geo_pos_t map_center = { INITIAL_LATITUDE, INITIAL_LONGITUDE };
+    *map = map_init(*renderer, map_center, INITIAL_ZOOM);
+    if (*map == NULL) {
+        http_deinit();
+        SDL_DestroyRenderer(*renderer);
+        SDL_DestroyWindow(*window);
+        IMG_Quit();
+        SDL_Quit();
+        return 1;
+    }
+
     return 0;
 }
 
-void deinit(SDL_Window* window, SDL_Renderer* renderer) {
+void deinit(SDL_Window* window, SDL_Renderer* renderer, map_t* map) {
+    map_deinit(map);
     http_deinit();
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
