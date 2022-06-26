@@ -6,6 +6,7 @@ static int load_tile_async(void* ptr_tile); /* SDL_ThreadFunction */
 static size_t count_digits(Uint32 number);
 static char* generate_request_path(const tile_t* tile);
 static _Bool is_belong(int x, int y, const SDL_Rect* rect);
+static void shift_map_grid_data(map_t* map, Sint8 shift_x, Sint8 shift_y);
 
 /* ---------------------- header functions definition ---------------------- */
 
@@ -98,7 +99,9 @@ void map_draw(const map_t* map, const SDL_Rect* area) {
     }
 }
 
-void map_handle_event(map_t* map, const SDL_Event* event) {
+void map_handle_event(map_t* map,
+                      const SDL_Event* event,
+                      const SDL_Rect* area) {
     if (event->type == map->center_tile.MAP_TILE_LOADED_EVENT) {
         tile_t* tile = event->user.data1;
         SDL_Surface* surface = event->user.data2;
@@ -121,6 +124,26 @@ void map_handle_event(map_t* map, const SDL_Event* event) {
         SDL_FreeSurface(surface);
         if (!map->is_loaded)
             start_tile_loading(map);
+    }
+
+    else if (event->type == SDL_MOUSEMOTION) {
+        if (!is_belong(event->motion.x, event->motion.y, area))
+            return;
+        if (event->motion.state & SDL_BUTTON_LMASK) {
+            Uint32 scale = map->center_tile.size / MAP_TILE_SIZE;
+            map->center.x -= event->motion.xrel * scale;
+            map->center.y -= event->motion.yrel * scale;
+
+            Uint32 tile_x = map->center.x / map->center_tile.size;
+            Uint32 tile_y = map->center.y / map->center_tile.size;
+            shift_map_grid_data(
+                map,
+                map->center_tile.x - tile_x,
+                map->center_tile.y - tile_y
+            );
+            map->center_tile.x = tile_x;
+            map->center_tile.y = tile_y;
+        }
     }
 }
 
@@ -242,4 +265,94 @@ static char* generate_request_path(const tile_t* tile) {
 static _Bool is_belong(int x, int y, const SDL_Rect* rect) {
     return x >= rect->x && x < rect->x + rect->w
         && y >= rect->y && y < rect->y + rect->h;
+}
+
+static void shift_map_grid_data(map_t* map, Sint8 shift_x, Sint8 shift_y) {
+    if (shift_x == 0 && shift_y == 0)
+        return;
+
+    if (shift_x > 0 && shift_x < MAP_GRID_SIZE) {
+        for (int i = 0; i < MAP_GRID_SIZE; i++) {
+            for (int j = MAP_GRID_SIZE - shift_x; j < MAP_GRID_SIZE; j++)
+                SDL_DestroyTexture(map->grid[i][j]);
+            for (int j = MAP_GRID_SIZE-1; j >= shift_x; j--) {
+                map->grid_loading_status[i][j] =
+                    map->grid_loading_status[i][j-shift_x];
+                map->grid[i][j] = map->grid[i][j-shift_x];
+            }
+            for (int j = 0; j < shift_x; j++) {
+                map->grid_loading_status[i][j] = 0;
+                map->grid[i][j] = NULL;
+            }
+        }
+    }
+
+    else if (shift_x < 0 && shift_x > -MAP_GRID_SIZE) {
+        shift_x *= -1;
+        for (int i = 0; i < MAP_GRID_SIZE; i++) {
+            for (int j = 0; j < shift_x; j++)
+                SDL_DestroyTexture(map->grid[i][j]);
+            for (int j = 0; j < MAP_GRID_SIZE - shift_x; j++) {
+                map->grid_loading_status[i][j] =
+                    map->grid_loading_status[i][j+shift_x];
+                map->grid[i][j] = map->grid[i][j+shift_x];
+            }
+            for (int j = MAP_GRID_SIZE - shift_x; j < MAP_GRID_SIZE; j++) {
+                map->grid_loading_status[i][j] = 0;
+                map->grid[i][j] = NULL;
+            }
+        }
+    }
+
+    if (shift_y > 0 && shift_y < MAP_GRID_SIZE) {
+        for (int j = 0; j < MAP_GRID_SIZE; j++) {
+            for (int i = MAP_GRID_SIZE - shift_y; i < MAP_GRID_SIZE; i++)
+                SDL_DestroyTexture(map->grid[i][j]);
+            for (int i = MAP_GRID_SIZE-1; i >= shift_y; i--) {
+                map->grid_loading_status[i][j] =
+                    map->grid_loading_status[i-shift_y][j];
+                map->grid[i][j] = map->grid[i-shift_y][j];
+            }
+            for (int i = 0; i < shift_y; i++) {
+                map->grid_loading_status[i][j] = 0;
+                map->grid[i][j] = NULL;
+            }
+        }
+    }
+
+    else if (shift_y < 0 && shift_y > -MAP_GRID_SIZE) {
+        shift_y *= -1;
+        for (int j = 0; j < MAP_GRID_SIZE; j++) {
+            for (int i = 0; i < shift_y; i++)
+                SDL_DestroyTexture(map->grid[i][j]);
+            for (int i = 0; i < MAP_GRID_SIZE - shift_y; i++) {
+                map->grid_loading_status[i][j] =
+                    map->grid_loading_status[i+shift_y][j];
+                map->grid[i][j] = map->grid[i+shift_y][j];
+            }
+            for (int i = MAP_GRID_SIZE - shift_y; i < MAP_GRID_SIZE; i++) {
+                map->grid_loading_status[i][j] = 0;
+                map->grid[i][j] = NULL;
+            }
+        }
+    }
+
+    if (shift_x < 0)
+        shift_x = -shift_x;
+    if (shift_y < 0)
+        shift_y = -shift_y;
+
+    if (shift_x >= MAP_GRID_SIZE || shift_y >= MAP_GRID_SIZE) {
+        for (int i = 0; i < MAP_GRID_SIZE; i++) {
+            for (int j = 0; j < MAP_GRID_SIZE; j++) {
+                SDL_DestroyTexture(map->grid[i][j]);
+                map->grid_loading_status[i][j] = 0;
+            }
+        }
+    }
+
+    if (!map->is_loaded)
+        return;
+    map->is_loaded = 0;
+    start_tile_loading(map);
 }

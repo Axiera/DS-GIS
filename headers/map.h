@@ -36,7 +36,7 @@ typedef struct {
 map_t* map_init(SDL_Renderer* renderer, geo_pos_t map_center, Uint8 zoom);
 void map_deinit(map_t* map);
 void map_draw(const map_t* map, const SDL_Rect* area);
-void map_handle_event(map_t* map, const SDL_Event* event);
+void map_handle_event(map_t* map, const SDL_Event* event, const SDL_Rect* area);
 
 /*
     SDL, SDL Image (JPG), http must be initialized
