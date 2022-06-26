@@ -13,6 +13,7 @@
 
 #define MAP_GRID_SIZE 9 /* odd number */
 #define MAP_TILE_SIZE 256
+#define MAP_MIN_ZOOM 0
 #define MAP_MAX_ZOOM 19
 
 typedef struct { Uint32 x, y;     } pix_pos_t;

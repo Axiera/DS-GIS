@@ -145,6 +145,29 @@ void map_handle_event(map_t* map,
             map->center_tile.y = tile_y;
         }
     }
+
+    else if (event->type == SDL_MOUSEWHEEL) {
+        Uint8 zoom = map->center_tile.zoom + event->wheel.y;
+        if (zoom < MAP_MIN_ZOOM || zoom > MAP_MAX_ZOOM)
+            return;
+
+        map->center_tile.size = MAP_TILE_SIZE * (1 << MAP_MAX_ZOOM-zoom);
+        map->center_tile.x = map->center.x / map->center_tile.size;
+        map->center_tile.y = map->center.y / map->center_tile.size;
+        map->center_tile.zoom = zoom;
+
+        for (int i = 0; i < MAP_GRID_SIZE; i++) {
+            for (int j = 0; j < MAP_GRID_SIZE; j++) {
+                SDL_DestroyTexture(map->grid[i][j]);
+                map->grid_loading_status[i][j] = 0;
+            }
+        }
+
+        if (!map->is_loaded)
+            return;
+        map->is_loaded = 0;
+        start_tile_loading(map);
+    }
 }
 
 /* ---------------------- static functions definition ---------------------- */
