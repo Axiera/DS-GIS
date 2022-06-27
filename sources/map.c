@@ -129,9 +129,22 @@ void map_handle_event(map_t* map,
             return;
         if (event->motion.state & SDL_BUTTON_LMASK) {
             Uint32 scale = map->center_tile.size / MAP_TILE_SIZE;
-            map->center.x -= event->motion.xrel * scale;
-            map->center.y -= event->motion.yrel * scale;
+            Sint32 new_x = map->center.x - event->motion.xrel * scale;
+            Sint32 new_y = map->center.y - event->motion.yrel * scale;
 
+            Uint32 max_pix_pos = (1 << MAP_MAX_ZOOM)*MAP_TILE_SIZE - 1;
+
+            if (new_x < 0)
+                new_x = 0;
+            if (new_x > max_pix_pos)
+                new_x = max_pix_pos;
+            if (new_y < 0)
+                new_y = 0;
+            if (new_y > max_pix_pos)
+                new_y = max_pix_pos;
+
+            map->center.x = new_x;
+            map->center.y = new_y;
             Uint32 tile_x = map->center.x / map->center_tile.size;
             Uint32 tile_y = map->center.y / map->center_tile.size;
             shift_map_grid_data(
