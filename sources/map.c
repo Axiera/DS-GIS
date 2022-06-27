@@ -110,14 +110,12 @@ void map_handle_event(map_t* map,
         int j = tile->x - (map->center_tile.x - MAP_GRID_SIZE/2);
         SDL_Rect grid = { 0, 0, MAP_GRID_SIZE, MAP_GRID_SIZE };
 
-        if (surface == NULL) {
-            map->is_loaded = 1;
-        } else if (is_belong(i, j, &grid) && !map->grid_loading_status[i][j]) {
+        if (is_belong(i, j, &grid) && map->center_tile.zoom == tile->zoom) {
             map->grid_loading_status[i][j] = 1;
-            map->grid[i][j] = SDL_CreateTextureFromSurface(
-                map->renderer,
-                surface
-            );
+            SDL_Texture* texture = NULL;
+            if (surface != NULL)
+                texture = SDL_CreateTextureFromSurface(map->renderer, surface);
+            map->grid[i][j] = texture;
         }
 
         free(tile);
