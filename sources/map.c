@@ -158,6 +158,10 @@ void map_handle_event(map_t* map,
     }
 
     else if (event->type == SDL_MOUSEWHEEL) {
+        int mouse_x, mouse_y;
+        SDL_GetMouseState(&mouse_x, &mouse_y);
+        if (!is_belong(mouse_x, mouse_y, area))
+            return;
         Uint8 zoom = map->center_tile.zoom + event->wheel.y;
         if (zoom < MAP_MIN_ZOOM || zoom > MAP_MAX_ZOOM)
             return;
