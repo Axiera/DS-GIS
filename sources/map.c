@@ -5,7 +5,6 @@ static void start_tile_loading(map_t* map);
 static int load_tile_async(void* ptr_tile); /* SDL_ThreadFunction */
 static size_t count_digits(Uint32 number);
 static char* generate_request_path(const tile_t* tile);
-static _Bool is_belong(int x, int y, const SDL_Rect* rect);
 static void shift_map_grid_data(map_t* map, Sint8 shift_x, Sint8 shift_y);
 
 /* ---------------------- header functions definition ---------------------- */
@@ -298,11 +297,6 @@ static char* generate_request_path(const tile_t* tile) {
     if (path != NULL)
         sprintf(path, path_base, tile->zoom, tile->x, tile->y, token);
     return path;
-}
-
-static _Bool is_belong(int x, int y, const SDL_Rect* rect) {
-    return x >= rect->x && x < rect->x + rect->w
-        && y >= rect->y && y < rect->y + rect->h;
 }
 
 static void shift_map_grid_data(map_t* map, Sint8 shift_x, Sint8 shift_y) {

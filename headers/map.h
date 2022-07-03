@@ -10,6 +10,7 @@
 
 #include "../config.h"
 #include "http.h"
+#include "isbelong.h"
 
 #define MAP_GRID_SIZE 9 /* odd number */
 #define MAP_TILE_SIZE 256
