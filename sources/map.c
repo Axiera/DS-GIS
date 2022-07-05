@@ -6,6 +6,12 @@ static int load_tile_async(void* ptr_tile); /* SDL_ThreadFunction */
 static size_t count_digits(Uint32 number);
 static char* generate_request_path(const tile_t* tile);
 static void shift_map_grid_data(map_t* map, Sint8 shift_x, Sint8 shift_y);
+static void free_map_grid_item(map_t* map, int i, int j);
+static void copy_map_grid_item(map_t* map,
+                               int destination_i,
+                               int destination_j,
+                               int source_i,
+                               int source_j);
 
 /* ---------------------- header functions definition ---------------------- */
 
@@ -44,7 +50,7 @@ map_t* map_init(SDL_Renderer* renderer, geo_pos_t map_center, Uint8 zoom) {
 void map_deinit(map_t* map) {
     for (int i = 0; i < MAP_GRID_SIZE; i++) {
         for (int j = 0; j < MAP_GRID_SIZE; j++)
-            SDL_DestroyTexture(map->grid[i][j]);
+            free_map_grid_item(map, i, j);
     }
     free(map);
 }
@@ -109,7 +115,7 @@ void map_handle_event(map_t* map,
         int j = tile->x - (map->center_tile.x - MAP_GRID_SIZE/2);
         SDL_Rect grid = { 0, 0, MAP_GRID_SIZE, MAP_GRID_SIZE };
 
-        if (is_belong(i, j, &grid) && map->center_tile.zoom == tile->zoom) {
+        if (is_belong(i, j, &grid) && !map->grid_loading_status[i][j]) {
             map->grid_loading_status[i][j] = 1;
             SDL_Texture* texture = NULL;
             if (surface != NULL)
@@ -171,10 +177,8 @@ void map_handle_event(map_t* map,
         map->center_tile.zoom = zoom;
 
         for (int i = 0; i < MAP_GRID_SIZE; i++) {
-            for (int j = 0; j < MAP_GRID_SIZE; j++) {
-                SDL_DestroyTexture(map->grid[i][j]);
-                map->grid_loading_status[i][j] = 0;
-            }
+            for (int j = 0; j < MAP_GRID_SIZE; j++)
+                free_map_grid_item(map, i, j);
         }
 
         if (!map->is_loaded)
@@ -306,16 +310,9 @@ static void shift_map_grid_data(map_t* map, Sint8 shift_x, Sint8 shift_y) {
     if (shift_x > 0 && shift_x < MAP_GRID_SIZE) {
         for (int i = 0; i < MAP_GRID_SIZE; i++) {
             for (int j = MAP_GRID_SIZE - shift_x; j < MAP_GRID_SIZE; j++)
-                SDL_DestroyTexture(map->grid[i][j]);
-            for (int j = MAP_GRID_SIZE-1; j >= shift_x; j--) {
-                map->grid_loading_status[i][j] =
-                    map->grid_loading_status[i][j-shift_x];
-                map->grid[i][j] = map->grid[i][j-shift_x];
-            }
-            for (int j = 0; j < shift_x; j++) {
-                map->grid_loading_status[i][j] = 0;
-                map->grid[i][j] = NULL;
-            }
+                free_map_grid_item(map, i, j);
+            for (int j = MAP_GRID_SIZE-1; j >= shift_x; j--)
+                copy_map_grid_item(map, i, j, i, j-shift_x);
         }
     }
 
@@ -323,32 +320,18 @@ static void shift_map_grid_data(map_t* map, Sint8 shift_x, Sint8 shift_y) {
         shift_x *= -1;
         for (int i = 0; i < MAP_GRID_SIZE; i++) {
             for (int j = 0; j < shift_x; j++)
-                SDL_DestroyTexture(map->grid[i][j]);
-            for (int j = 0; j < MAP_GRID_SIZE - shift_x; j++) {
-                map->grid_loading_status[i][j] =
-                    map->grid_loading_status[i][j+shift_x];
-                map->grid[i][j] = map->grid[i][j+shift_x];
-            }
-            for (int j = MAP_GRID_SIZE - shift_x; j < MAP_GRID_SIZE; j++) {
-                map->grid_loading_status[i][j] = 0;
-                map->grid[i][j] = NULL;
-            }
+                free_map_grid_item(map, i, j);
+            for (int j = 0; j < MAP_GRID_SIZE - shift_x; j++)
+                copy_map_grid_item(map, i, j, i, j+shift_x);
         }
     }
 
     if (shift_y > 0 && shift_y < MAP_GRID_SIZE) {
         for (int j = 0; j < MAP_GRID_SIZE; j++) {
             for (int i = MAP_GRID_SIZE - shift_y; i < MAP_GRID_SIZE; i++)
-                SDL_DestroyTexture(map->grid[i][j]);
-            for (int i = MAP_GRID_SIZE-1; i >= shift_y; i--) {
-                map->grid_loading_status[i][j] =
-                    map->grid_loading_status[i-shift_y][j];
-                map->grid[i][j] = map->grid[i-shift_y][j];
-            }
-            for (int i = 0; i < shift_y; i++) {
-                map->grid_loading_status[i][j] = 0;
-                map->grid[i][j] = NULL;
-            }
+                free_map_grid_item(map, i, j);
+            for (int i = MAP_GRID_SIZE-1; i >= shift_y; i--)
+                copy_map_grid_item(map, i, j, i-shift_y, j);
         }
     }
 
@@ -356,16 +339,9 @@ static void shift_map_grid_data(map_t* map, Sint8 shift_x, Sint8 shift_y) {
         shift_y *= -1;
         for (int j = 0; j < MAP_GRID_SIZE; j++) {
             for (int i = 0; i < shift_y; i++)
-                SDL_DestroyTexture(map->grid[i][j]);
-            for (int i = 0; i < MAP_GRID_SIZE - shift_y; i++) {
-                map->grid_loading_status[i][j] =
-                    map->grid_loading_status[i+shift_y][j];
-                map->grid[i][j] = map->grid[i+shift_y][j];
-            }
-            for (int i = MAP_GRID_SIZE - shift_y; i < MAP_GRID_SIZE; i++) {
-                map->grid_loading_status[i][j] = 0;
-                map->grid[i][j] = NULL;
-            }
+                free_map_grid_item(map, i, j);
+            for (int i = 0; i < MAP_GRID_SIZE - shift_y; i++)
+                copy_map_grid_item(map, i, j, i+shift_y, j);
         }
     }
 
@@ -376,10 +352,8 @@ static void shift_map_grid_data(map_t* map, Sint8 shift_x, Sint8 shift_y) {
 
     if (shift_x >= MAP_GRID_SIZE || shift_y >= MAP_GRID_SIZE) {
         for (int i = 0; i < MAP_GRID_SIZE; i++) {
-            for (int j = 0; j < MAP_GRID_SIZE; j++) {
-                SDL_DestroyTexture(map->grid[i][j]);
-                map->grid_loading_status[i][j] = 0;
-            }
+            for (int j = 0; j < MAP_GRID_SIZE; j++)
+                free_map_grid_item(map, i, j);
         }
     }
 
@@ -387,4 +361,22 @@ static void shift_map_grid_data(map_t* map, Sint8 shift_x, Sint8 shift_y) {
         return;
     map->is_loaded = 0;
     start_tile_loading(map);
+}
+
+static void free_map_grid_item(map_t* map, int i, int j) {
+    SDL_DestroyTexture(map->grid[i][j]);
+    map->grid[i][j] = NULL;
+    map->grid_loading_status[i][j] = 0;
+}
+
+static void copy_map_grid_item(map_t* map,
+                               int destination_i,
+                               int destination_j,
+                               int source_i,
+                               int source_j) {
+    map->grid[destination_i][destination_j] = map->grid[source_i][source_j];
+    map->grid[source_i][source_j] = NULL;
+    map->grid_loading_status[destination_i][destination_j] =
+        map->grid_loading_status[source_i][source_j];
+    map->grid_loading_status[source_i][source_j] = 0;
 }
