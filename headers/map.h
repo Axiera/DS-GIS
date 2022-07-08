@@ -11,6 +11,8 @@
 #include "../config.h"
 #include "http.h"
 #include "isbelong.h"
+#include "list.h"
+#include "marker.h"
 
 #define MAP_GRID_SIZE 9 /* odd number */
 #define MAP_TILE_SIZE 256
@@ -29,6 +31,8 @@ typedef struct {
 typedef struct {
     SDL_Texture* grid[MAP_GRID_SIZE][MAP_GRID_SIZE];
     Sint8 grid_loading_status[MAP_GRID_SIZE][MAP_GRID_SIZE];
+    list_t marker_grid[MAP_GRID_SIZE][MAP_GRID_SIZE];
+    list_t markers;
     SDL_Renderer* renderer;
     unsigned int is_loaded : 1;
     pix_pos_t center;
@@ -42,6 +46,10 @@ void map_handle_event(map_t* map, const SDL_Event* event, const SDL_Rect* area);
 
 /*
     SDL, SDL Image (JPG), http must be initialized
+
+    map_t
+        marker_grid - 2d array of lists of pointers to marker_t
+        markers - list of marker_t
 
     map_init()
         returns pointer to map_t on success

@@ -1,6 +1,13 @@
 #include "../headers/map.h"
 
+#define MARKER_GRID_LIST_ALLOCATION_PORTION (16*sizeof(marker_t*))
+#define MARKERS_LIST_ALLOCATION_PORTION (1024*sizeof(marker_t))
+
 static pix_pos_t to_pix(geo_pos_t geo_pos);
+static pix_pos_t to_pix_from_mouse(const map_t* map,
+                                   int x,
+                                   int y,
+                                   const SDL_Rect* area);
 static void start_tile_loading(map_t* map);
 static int load_tile_async(void* ptr_tile); /* SDL_ThreadFunction */
 static size_t count_digits(Uint32 number);
@@ -12,6 +19,8 @@ static void copy_map_grid_item(map_t* map,
                                int destination_j,
                                int source_i,
                                int source_j);
+static void update_marker_grid_item(map_t* map, int i, int j);
+static void draw_markers(const map_t* map, int i, int j, const SDL_Rect* area);
 
 /* ---------------------- header functions definition ---------------------- */
 
@@ -26,8 +35,13 @@ map_t* map_init(SDL_Renderer* renderer, geo_pos_t map_center, Uint8 zoom) {
         for (int j = 0; j < MAP_GRID_SIZE; j++) {
             map->grid[i][j] = NULL;
             map->grid_loading_status[i][j] = 0;
+            list_init(
+                &map->marker_grid[i][j],
+                MARKER_GRID_LIST_ALLOCATION_PORTION
+            );
         }
     }
+    list_init(&map->markers, MARKERS_LIST_ALLOCATION_PORTION);
     map->renderer = renderer;
     map->is_loaded = 0;
     map->center = to_pix(map_center);
@@ -52,6 +66,7 @@ void map_deinit(map_t* map) {
         for (int j = 0; j < MAP_GRID_SIZE; j++)
             free_map_grid_item(map, i, j);
     }
+    list_free(&map->markers);
     free(map);
 }
 
@@ -102,6 +117,14 @@ void map_draw(const map_t* map, const SDL_Rect* area) {
             SDL_RenderCopy(map->renderer, map->grid[i][j], &srcrect, &dstrect);
         }
     }
+
+    for (int i = 0; i < MAP_GRID_SIZE; i++) {
+        for (int j = 0; j < MAP_GRID_SIZE; j++) {
+            if (!map->grid_loading_status[i][j])
+                continue;
+            draw_markers(map, i, j, area);
+        }
+    }
 }
 
 void map_handle_event(map_t* map,
@@ -121,6 +144,7 @@ void map_handle_event(map_t* map,
             if (surface != NULL)
                 texture = SDL_CreateTextureFromSurface(map->renderer, surface);
             map->grid[i][j] = texture;
+            update_marker_grid_item(map, i, j);
         }
 
         free(tile);
@@ -133,23 +157,25 @@ void map_handle_event(map_t* map,
         if (!is_belong(event->motion.x, event->motion.y, area))
             return;
         if (event->motion.state & SDL_BUTTON_LMASK) {
-            Uint32 scale = map->center_tile.size / MAP_TILE_SIZE;
-            Sint32 new_x = map->center.x - event->motion.xrel * scale;
-            Sint32 new_y = map->center.y - event->motion.yrel * scale;
+            pix_pos_t new_center = to_pix_from_mouse(
+                map,
+                area->x + area->w/2 - event->motion.xrel,
+                area->y + area->h/2 - event->motion.yrel,
+                area
+            );
 
             Uint32 max_pix_pos = (1 << MAP_MAX_ZOOM)*MAP_TILE_SIZE - 1;
 
-            if (new_x < 0)
-                new_x = 0;
-            if (new_x > max_pix_pos)
-                new_x = max_pix_pos;
-            if (new_y < 0)
-                new_y = 0;
-            if (new_y > max_pix_pos)
-                new_y = max_pix_pos;
+            if (new_center.x < 0)
+                new_center.x = 0;
+            if (new_center.x > max_pix_pos)
+                new_center.x = max_pix_pos;
+            if (new_center.y < 0)
+                new_center.y = 0;
+            if (new_center.y > max_pix_pos)
+                new_center.y = max_pix_pos;
 
-            map->center.x = new_x;
-            map->center.y = new_y;
+            map->center = new_center;
             Uint32 tile_x = map->center.x / map->center_tile.size;
             Uint32 tile_y = map->center.y / map->center_tile.size;
             shift_map_grid_data(
@@ -186,6 +212,27 @@ void map_handle_event(map_t* map,
         map->is_loaded = 0;
         start_tile_loading(map);
     }
+
+    else if (event->type == SDL_MOUSEBUTTONDOWN) {
+        if (!is_belong(event->button.x, event->button.y, area))
+            return;
+        Uint8 button = event->button.button;
+        if (button == SDL_BUTTON_LEFT && event->button.clicks == 2) {
+            pix_pos_t pos =
+                to_pix_from_mouse(map, event->button.x, event->button.y, area);
+            marker_t marker = {
+                .x = pos.x,
+                .y = pos.y
+            };
+            list_add(&map->markers, &marker, sizeof(marker_t));
+
+            Uint32 tile_x = pos.x / map->center_tile.size;
+            Uint32 tile_y = pos.y / map->center_tile.size;
+            int i = tile_y - (map->center_tile.y - MAP_GRID_SIZE/2);
+            int j = tile_x - (map->center_tile.x - MAP_GRID_SIZE/2);
+            update_marker_grid_item(map, i, j);
+        }
+    }
 }
 
 /* ---------------------- static functions definition ---------------------- */
@@ -195,6 +242,19 @@ static pix_pos_t to_pix(geo_pos_t geo_pos) {
     double x = (geo_pos.lon + 180)/360 * (1<<MAP_MAX_ZOOM);
     double y = (1 - asinh(tan(lat_radian))/M_PI) * (1 << MAP_MAX_ZOOM-1);
     return (pix_pos_t){ x*MAP_TILE_SIZE, y*MAP_TILE_SIZE };
+}
+
+static pix_pos_t to_pix_from_mouse(const map_t* map,
+                                   int x,
+                                   int y,
+                                   const SDL_Rect* area) {
+    Sint32 delta_x = x - (area->x + area->w/2);
+    Sint32 delta_y = y - (area->y + area->h/2);
+    Sint32 scale = map->center_tile.size / MAP_TILE_SIZE;
+    return (pix_pos_t){
+        .x = map->center.x + delta_x*scale,
+        .y = map->center.y + delta_y*scale
+    };
 }
 
 static void start_tile_loading(map_t* map) {
@@ -367,6 +427,7 @@ static void free_map_grid_item(map_t* map, int i, int j) {
     SDL_DestroyTexture(map->grid[i][j]);
     map->grid[i][j] = NULL;
     map->grid_loading_status[i][j] = 0;
+    list_free(&map->marker_grid[i][j]);
 }
 
 static void copy_map_grid_item(map_t* map,
@@ -376,7 +437,77 @@ static void copy_map_grid_item(map_t* map,
                                int source_j) {
     map->grid[destination_i][destination_j] = map->grid[source_i][source_j];
     map->grid[source_i][source_j] = NULL;
+
     map->grid_loading_status[destination_i][destination_j] =
         map->grid_loading_status[source_i][source_j];
     map->grid_loading_status[source_i][source_j] = 0;
+
+    map->marker_grid[destination_i][destination_j] =
+        map->marker_grid[source_i][source_j];
+    map->marker_grid[source_i][source_j].begin = NULL;
+    map->marker_grid[source_i][source_j].size = 0;
+    map->marker_grid[source_i][source_j].allocated_size = 0;
+}
+
+static void update_marker_grid_item(map_t* map, int i, int j) {
+    list_free(&map->marker_grid[i][j]);
+    marker_cut(&map->marker_grid[i][j], &map->markers, &(SDL_Rect){
+        .x = (map->center_tile.x - MAP_GRID_SIZE/2 + j) * map->center_tile.size,
+        .y = (map->center_tile.y - MAP_GRID_SIZE/2 + i) * map->center_tile.size,
+        .w = map->center_tile.size,
+        .h = map->center_tile.size
+    });
+}
+
+static void draw_markers(const map_t* map, int i, int j, const SDL_Rect* area) {
+    pix_pos_t grid_begin = {
+        .x = (map->center_tile.x - MAP_GRID_SIZE/2) * map->center_tile.size,
+        .y = (map->center_tile.y - MAP_GRID_SIZE/2) * map->center_tile.size
+    };
+    Uint32 scale = map->center_tile.size / MAP_TILE_SIZE;
+    Sint32 begin_x = area->x + area->w/2 - (map->center.x-grid_begin.x)/scale;
+    Sint32 begin_y = area->y + area->h/2 - (map->center.y-grid_begin.y)/scale;
+
+    const list_t* list = &map->marker_grid[i][j];
+    for (int k = 0; k < list->size; k += sizeof(marker_t*)) {
+        marker_t* marker = *(marker_t**)list_get(list, k);
+
+        Sint32 x = begin_x + j*MAP_TILE_SIZE
+            + (marker->x % map->center_tile.size)/scale
+            - MARKER_PIXEL_SIZE/2;
+        Sint32 y = begin_y + i*MAP_TILE_SIZE
+            + (marker->y % map->center_tile.size)/scale
+            - MARKER_PIXEL_SIZE/2;
+        if (x + MARKER_PIXEL_SIZE < area->x || x >= area->x + area->w)
+            continue;
+        if (y + MARKER_PIXEL_SIZE < area->y || y >= area->y + area->h)
+            continue;
+
+        int indent;
+        if (map->center_tile.zoom >= 17)
+            indent = 0;
+        else if (map->center_tile.zoom >= 15)
+            indent = 5;
+        else if (map->center_tile.zoom >= 13)
+            indent = 6;
+        else if (map->center_tile.zoom >= MAP_MIN_ZOOM)
+            indent = 7;
+
+        int pixel_i_begin = y + indent < area->y ? area->y - y : indent;
+        int pixel_j_begin = x + indent < area->x ? area->x - x : indent;
+        int pixel_i_end = y + MARKER_PIXEL_SIZE - indent > area->y + area->h ?
+            area->y + area->h - y : MARKER_PIXEL_SIZE - indent;
+        int pixel_j_end = x + MARKER_PIXEL_SIZE - indent > area->x + area->w ?
+            area->x + area->w - x : MARKER_PIXEL_SIZE - indent;
+
+        const Uint8* MARKER_PIXELS = marker_get_pixels();
+        SDL_SetRenderDrawColor(map->renderer, 255, 255, 255, 255);
+        for (int pi = pixel_i_begin; pi < pixel_i_end; pi++) {
+            for (int pj = pixel_j_begin; pj < pixel_j_end; pj++) {
+                const Uint8* pixel = MARKER_PIXELS + pi*MARKER_PIXEL_SIZE + pj;
+                if (*pixel)
+                    SDL_RenderDrawPoint(map->renderer, x+pj, y+pi);
+            }
+        }
+    }
 }
