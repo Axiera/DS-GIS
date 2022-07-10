@@ -1,5 +1,6 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_Image.h>
+#include <SDL2/SDL_ttf.h>
 #include <windows.h>
 #include <stdlib.h>
 
@@ -69,6 +70,12 @@ int init(SDL_Window** window, SDL_Renderer** renderer, map_t** map) {
         return 1;
     }
 
+    if (TTF_Init()) {
+        SDL_SetError(TTF_GetError());
+        IMG_Quit();
+        SDL_Quit();
+    }
+
     *window = SDL_CreateWindow(
         TITLE,
         SDL_WINDOWPOS_UNDEFINED,
@@ -77,6 +84,7 @@ int init(SDL_Window** window, SDL_Renderer** renderer, map_t** map) {
         INITIAL_WINDOW_HEIGHT,
         SDL_WINDOW_MAXIMIZED | SDL_WINDOW_RESIZABLE);
     if (window == NULL) {
+        TTF_Quit();
         IMG_Quit();
         SDL_Quit();
         return 1;
@@ -85,6 +93,7 @@ int init(SDL_Window** window, SDL_Renderer** renderer, map_t** map) {
     *renderer = SDL_CreateRenderer(*window, -1, SDL_RENDERER_ACCELERATED);
     if (renderer == NULL) {
         SDL_DestroyWindow(*window);
+        TTF_Quit();
         IMG_Quit();
         SDL_Quit();
         return 1;
@@ -93,6 +102,7 @@ int init(SDL_Window** window, SDL_Renderer** renderer, map_t** map) {
     if (http_init()) {
         SDL_DestroyRenderer(*renderer);
         SDL_DestroyWindow(*window);
+        TTF_Quit();
         IMG_Quit();
         SDL_Quit();
         return 1;
@@ -104,6 +114,7 @@ int init(SDL_Window** window, SDL_Renderer** renderer, map_t** map) {
         http_deinit();
         SDL_DestroyRenderer(*renderer);
         SDL_DestroyWindow(*window);
+        TTF_Quit();
         IMG_Quit();
         SDL_Quit();
         return 1;
@@ -117,6 +128,7 @@ void deinit(SDL_Window* window, SDL_Renderer* renderer, map_t* map) {
     http_deinit();
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
+    TTF_Quit();
     IMG_Quit();
     SDL_Quit();
 }
