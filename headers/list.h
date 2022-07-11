@@ -14,7 +14,11 @@ typedef struct {
 
 void list_init(list_t* list, size_t allocation_portion_byte);
 void list_free(list_t* list);
-int list_add(list_t* list, void* data, size_t data_size);
+int list_add(list_t* list, const void* data, size_t data_size);
+int list_insert(list_t* list,
+                size_t index_byte,
+                const void* data,
+                size_t data_size);
 void* list_get(const list_t* list, size_t index_byte);
 
 /*

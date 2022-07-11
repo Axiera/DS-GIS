@@ -14,7 +14,7 @@ void list_free(list_t* list) {
     list->allocated_size = 0;
 }
 
-int list_add(list_t* list, void* data, size_t data_size) {
+int list_add(list_t* list, const void* data, size_t data_size) {
     if (list->size + data_size > list->allocated_size) {
         size_t realloc_size = list->allocated_size;
         while (realloc_size < list->size + data_size)
@@ -29,6 +29,33 @@ int list_add(list_t* list, void* data, size_t data_size) {
     }
 
     memcpy(list->begin + list->size, data, data_size);
+    list->size += data_size;
+    return 0;
+}
+
+int list_insert(list_t* list,
+                size_t index_byte,
+                const void* data,
+                size_t data_size) {
+    if (list->size + data_size > list->allocated_size) {
+        size_t realloc_size = list->allocated_size;
+        while (realloc_size < list->size + data_size)
+            realloc_size += list->allocation_portion;
+        void* new_begin = realloc(list->begin, realloc_size);
+        if (new_begin == NULL) {
+            SDL_SetError("memory allocation failed\n%s()", __func__);
+            return 1;
+        }
+        list->begin = new_begin;
+        list->allocated_size = realloc_size;
+    }
+
+    memmove(
+        list->begin + index_byte + data_size,
+        list->begin + index_byte,
+        list->size - index_byte
+    );
+    memcpy(list->begin + index_byte, data, data_size);
     list->size += data_size;
     return 0;
 }
