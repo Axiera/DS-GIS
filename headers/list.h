@@ -19,10 +19,15 @@ int list_insert(list_t* list,
                 size_t index_byte,
                 const void* data,
                 size_t data_size);
+void list_erase(list_t* list, size_t index_byte, size_t count_byte);
 void* list_get(const list_t* list, size_t index_byte);
 
 /*
     list_add()
+        returns 0 on success
+        returns non-0 value on error, call SDL_GetError() for more information
+
+    list_insert()
         returns 0 on success
         returns non-0 value on error, call SDL_GetError() for more information
 */

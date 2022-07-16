@@ -60,6 +60,15 @@ int list_insert(list_t* list,
     return 0;
 }
 
+void list_erase(list_t* list, size_t index_byte, size_t count_byte) {
+    memmove(
+        list->begin + index_byte,
+        list->begin + index_byte + count_byte,
+        list->size - (index_byte + count_byte)
+    );
+    list->size -= count_byte;
+}
+
 void* list_get(const list_t* list, size_t index_byte) {
     return list->begin + index_byte;
 }
