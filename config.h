@@ -1,6 +1,16 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+#define CONFIG_COLOR_BORDER 171, 168, 165, 255
+#define CONFIG_COLOR_ACTIVE  58, 124, 166, 255
+#define CONFIG_COLOR_TEXT    31,  28,  25, 255
+
+#define CONFIG_BUTTON_WIDTH 80
+#define CONFIG_BUTTON_HEIGHT 20
+#define CONFIG_EDITLINE_HEIGHT 24
+
+#define CONFIG_FONT_SIZE 14
+#define CONFIG_FONT_PATH "C:/Windows/Fonts/Arial.ttf"
 #define CONFIG_MAPBOX_ACCESS_TOKEN ""
 
 #endif

@@ -19,11 +19,12 @@ editline_t* editline_init(const char* hint_text, SDL_Renderer* renderer) {
         return NULL;
     }
 
+    int font_size = CONFIG_EDITLINE_HEIGHT - 2*EDITLINE_VERTICAL_INDENT;
     editline->font =
-        TTF_OpenFont(FONT_PATH, EDITLINE_HEIGHT - 2*EDITLINE_VERTICAL_INDENT);
+        TTF_OpenFont(CONFIG_FONT_PATH, font_size);
     if (editline->font == NULL) {
         free(editline);
-        SDL_SetError("can not open %s\n%s()", FONT_PATH, __func__);
+        SDL_SetError("can not open %s\n%s()", CONFIG_FONT_PATH, __func__);
         return NULL;
     }
 
@@ -31,7 +32,7 @@ editline_t* editline_init(const char* hint_text, SDL_Renderer* renderer) {
         renderer,
         editline->font,
         hint_text,
-        &(SDL_Color){ EDITLINE_HINT_COLOR },
+        &(SDL_Color){ CONFIG_COLOR_BORDER },
         &editline->hint_texture_width,
         NULL
     );
@@ -61,19 +62,22 @@ void editline_draw(const editline_t* editline,
                    SDL_Renderer* renderer,
                    int x,
                    int y,
-                   int width) {
+                   int w) {
     if (editline->active)
-        SDL_SetRenderDrawColor(renderer, EDITLINE_ACTIVE_BORDER_COLOR);
+        SDL_SetRenderDrawColor(renderer, CONFIG_COLOR_ACTIVE);
     else
-        SDL_SetRenderDrawColor(renderer, EDITLINE_BORDER_COLOR);
-    SDL_RenderDrawRect(renderer, &(SDL_Rect){ x, y, width, EDITLINE_HEIGHT });
+        SDL_SetRenderDrawColor(renderer, CONFIG_COLOR_BORDER);
+    SDL_Rect border = { x, y, w, CONFIG_EDITLINE_HEIGHT };
+    SDL_RenderDrawRect(renderer, &border);
+
+    int text_height = CONFIG_EDITLINE_HEIGHT - 2*EDITLINE_VERTICAL_INDENT;
 
     if (editline->text.size <= 1) {
         SDL_Rect dstrect = {
             .x = x + EDITLINE_HORIZONTAL_INDENT,
             .y = y + EDITLINE_VERTICAL_INDENT,
             .w = editline->hint_texture_width,
-            .h = EDITLINE_HEIGHT - 2*EDITLINE_VERTICAL_INDENT
+            .h = text_height
         };
         SDL_RenderCopy(renderer, editline->hint_texture, NULL, &dstrect);
     }
@@ -89,10 +93,10 @@ void editline_draw(const editline_t* editline,
         .x = x + EDITLINE_HORIZONTAL_INDENT,
         .y = y + EDITLINE_VERTICAL_INDENT,
         .w = editline->text_texture_width,
-        .h = EDITLINE_HEIGHT - 2*EDITLINE_VERTICAL_INDENT
+        .h = text_height
     };
 
-    int max_width = width - 2*EDITLINE_HORIZONTAL_INDENT;
+    int max_width = w - 2*EDITLINE_HORIZONTAL_INDENT;
     if (dstrect.w > max_width) {
         srcrect.x = srcrect.w - max_width;
         srcrect.w = max_width;
@@ -107,12 +111,12 @@ void editline_handle_event(editline_t* editline,
                            SDL_Renderer* renderer,
                            int x,
                            int y,
-                           int width) {
+                           int w) {
     if (event->type == SDL_MOUSEBUTTONDOWN) {
         if (event->button.button == SDL_BUTTON_LEFT) {
             int mouse_x = event->button.x;
             int mouse_y = event->button.y;
-            SDL_Rect area = { x, y, width, EDITLINE_HEIGHT };
+            SDL_Rect area = { x, y, w, CONFIG_EDITLINE_HEIGHT };
             editline->active = is_belong(mouse_x, mouse_y, &area);
         }
     }
@@ -128,7 +132,7 @@ void editline_handle_event(editline_t* editline,
             renderer,
             editline->font,
             editline->text.begin,
-            &(SDL_Color){ EDITLINE_TEXT_COLOR },
+            &(SDL_Color){ CONFIG_COLOR_TEXT },
             &editline->text_texture_width,
             &editline->text_texture_height
         );
@@ -151,7 +155,7 @@ void editline_handle_event(editline_t* editline,
                 renderer,
                 editline->font,
                 editline->text.begin,
-                &(SDL_Color){ EDITLINE_TEXT_COLOR },
+                &(SDL_Color){ CONFIG_COLOR_TEXT },
                 &editline->text_texture_width,
                 &editline->text_texture_height
             );

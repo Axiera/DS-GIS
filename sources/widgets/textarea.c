@@ -1,16 +1,16 @@
 #include "../../headers/widgets/textarea.h"
 
-textarea_t* textarea_init(int font_size) {
+textarea_t* textarea_init(void) {
     textarea_t* textarea = malloc(sizeof(textarea_t));
     if (textarea == NULL) {
         SDL_SetError("memory allocation failed\n%s()", __func__);
         return NULL;
     }
 
-    textarea->font = TTF_OpenFont(FONT_PATH, font_size);
+    textarea->font = TTF_OpenFont(CONFIG_FONT_PATH, CONFIG_FONT_SIZE);
     if (textarea->font == NULL) {
         free(textarea);
-        SDL_SetError("can not open %s\n%s()", FONT_PATH, __func__);
+        SDL_SetError("can not open %s\n%s()", CONFIG_FONT_PATH, __func__);
         return NULL;
     }
 
@@ -50,7 +50,7 @@ void textarea_set_text(textarea_t* textarea,
     SDL_Surface* surface = TTF_RenderUTF8_Blended_Wrapped(
         textarea->font,
         text,
-        (SDL_Color){ TEXTAREA_TEXT_COLOR },
+        (SDL_Color){ CONFIG_COLOR_TEXT },
         w
     );
     if (surface == NULL)

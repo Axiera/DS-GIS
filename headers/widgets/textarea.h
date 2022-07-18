@@ -3,9 +3,7 @@
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
-
-#define TEXTAREA_TEXT_COLOR 0, 0, 0, 255
-#define FONT_PATH "C:/Windows/Fonts/Arial.ttf"
+#include "../../config.h"
 
 typedef struct {
     SDL_Texture* text_texture;
@@ -13,7 +11,7 @@ typedef struct {
     int w, h;
 } textarea_t;
 
-textarea_t* textarea_init(int font_size);
+textarea_t* textarea_init(void);
 void textarea_deinit(textarea_t* textarea);
 void textarea_draw(const textarea_t* textarea,
                    SDL_Renderer* renderer,
