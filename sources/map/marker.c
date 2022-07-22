@@ -1,4 +1,4 @@
-#include "../headers/marker.h"
+#include "../../headers/map/marker.h"
 
 static const Uint8 MARKER_PIXELS[MARKER_PIXEL_SIZE * MARKER_PIXEL_SIZE] = {
     0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,

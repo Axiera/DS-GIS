@@ -8,10 +8,10 @@
 #include <stdio.h> /* sprintf only */
 #include <string.h>
 
-#include "../config.h"
-#include "http.h"
-#include "isbelong.h"
-#include "list.h"
+#include "../../config.h"
+#include "../http.h"
+#include "../isbelong.h"
+#include "../list.h"
 #include "marker.h"
 
 #define MAP_GRID_SIZE 9 /* odd number */

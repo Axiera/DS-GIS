@@ -5,7 +5,7 @@
 #include <stdlib.h>
 
 #include "headers/http.h"
-#include "headers/map.h"
+#include "headers/map/map.h"
 
 const char   TITLE[7]              = "DS GIS";
 const int    INITIAL_WINDOW_WIDTH  = 720;

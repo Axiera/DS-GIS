@@ -2,8 +2,8 @@
 #define MARKER_H
 
 #include <SDL2/SDL.h>
-#include "list.h"
-#include "isbelong.h"
+#include "../list.h"
+#include "../isbelong.h"
 #define MARKER_PIXEL_SIZE 15 /* odd number */
 
 typedef struct {
