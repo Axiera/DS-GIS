@@ -8,6 +8,7 @@
 
 typedef struct {
     Uint32 x, y;
+    Uint8 color : 3;
 } marker_t;
 
 const Uint8* marker_get_pixels(void);

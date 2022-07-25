@@ -33,7 +33,7 @@ int main(int argc, char* argv[]) {
     SDL_Event event;
     while (event_received_successfully = SDL_WaitEvent(&event)) {
         SDL_Rect map_area = { 0, 0, window_width, window_height };
-        map_handle_event(map, &event, &map_area);
+        map_handle_event(map, &event, renderer, map_area);
 
         if (event.type == SDL_QUIT) {
             break;
@@ -46,7 +46,7 @@ int main(int argc, char* argv[]) {
 
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
         SDL_RenderClear(renderer);
-        map_draw(map, &map_area);
+        map_draw(map, map_area);
         SDL_RenderPresent(renderer);
     }
 

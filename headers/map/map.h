@@ -12,7 +12,9 @@
 #include "../http.h"
 #include "../isbelong.h"
 #include "../list.h"
+#include "../widgets/colorpicker.h"
 #include "marker.h"
+#include "panel.h"
 
 #define MAP_GRID_SIZE 9 /* odd number */
 #define MAP_TILE_SIZE 256
@@ -34,6 +36,7 @@ typedef struct {
     list_t marker_grid[MAP_GRID_SIZE][MAP_GRID_SIZE];
     list_t markers;
     SDL_Renderer* renderer;
+    panel_t* panel;
     unsigned int is_loaded : 1;
     pix_pos_t center;
     tile_t center_tile;
@@ -41,8 +44,11 @@ typedef struct {
 
 map_t* map_init(SDL_Renderer* renderer, geo_pos_t map_center, Uint8 zoom);
 void map_deinit(map_t* map);
-void map_draw(const map_t* map, const SDL_Rect* area);
-void map_handle_event(map_t* map, const SDL_Event* event, const SDL_Rect* area);
+void map_draw(const map_t* map, SDL_Rect area);
+void map_handle_event(map_t* map,
+                      const SDL_Event* event,
+                      SDL_Renderer* renderer,
+                      SDL_Rect area);
 
 /*
     SDL, SDL Image (JPG), http must be initialized
