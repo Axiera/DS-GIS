@@ -50,17 +50,18 @@ editfield_t* editfield_init(const char* hint_text,
     );
 
     editfield->text_texture_width = 0;
+    editfield->text_texture_height = 0;
     editfield->active = 0;
 
     return editfield;
 }
 
 void editfield_deinit(editfield_t* editfield) {
-    list_free(&editfield->text);
-    list_free(&editfield->text_characters_sizes);
+    TTF_CloseFont(editfield->font);
     SDL_DestroyTexture(editfield->hint_texture);
     SDL_DestroyTexture(editfield->text_texture);
-    TTF_CloseFont(editfield->font);
+    list_free(&editfield->text);
+    list_free(&editfield->text_characters_sizes);
     free(editfield);
 }
 

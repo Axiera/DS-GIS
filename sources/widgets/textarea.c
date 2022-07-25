@@ -13,6 +13,7 @@ textarea_t* textarea_init(void) {
         SDL_SetError("can not open %s\n%s()", CONFIG_FONT_PATH, __func__);
         return NULL;
     }
+    textarea->text_texture = NULL;
 
     return textarea;
 }

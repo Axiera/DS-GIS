@@ -6,8 +6,8 @@
 #include "../../config.h"
 
 typedef struct {
-    SDL_Texture* text_texture;
     TTF_Font* font;
+    SDL_Texture* text_texture;
     int w, h;
 } textarea_t;
 

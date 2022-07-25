@@ -46,15 +46,18 @@ editline_t* editline_init(const char* hint_text, SDL_Renderer* renderer) {
     );
 
     editline->text_texture_width = 0;
+    editline->text_texture_height = 0;
     editline->active = 0;
 
     return editline;
 }
 
 void editline_deinit(editline_t* editline) {
+    TTF_CloseFont(editline->font);
+    SDL_DestroyTexture(editline->hint_texture);
+    SDL_DestroyTexture(editline->text_texture);
     list_free(&editline->text);
     list_free(&editline->text_characters_sizes);
-    TTF_CloseFont(editline->font);
     free(editline);
 }
 
