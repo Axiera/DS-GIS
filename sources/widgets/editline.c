@@ -12,7 +12,9 @@ static SDL_Texture* render_text(SDL_Renderer* renderer,
 
 /* ---------------------- header functions definition ---------------------- */
 
-editline_t* editline_init(const char* hint_text, SDL_Renderer* renderer) {
+editline_t* editline_init(const char* hint_text,
+                          SDL_Renderer* renderer,
+                          Uint16 max_text_char_size) {
     editline_t* editline = malloc(sizeof(editline_t));
     if (editline == NULL) {
         SDL_SetError("memory allocation failed\n%s()", __func__);
@@ -47,6 +49,7 @@ editline_t* editline_init(const char* hint_text, SDL_Renderer* renderer) {
 
     editline->text_texture_width = 0;
     editline->text_texture_height = 0;
+    editline->max_text_char_size = max_text_char_size;
     editline->active = 0;
 
     return editline;
@@ -127,6 +130,8 @@ void editline_handle_event(editline_t* editline,
     else if (editline->active && event->type == SDL_TEXTINPUT) {
         const char* text = event->text.text;
         Uint32 text_size = strlen(text);
+        if (editline->text.size-1 + text_size > editline->max_text_char_size)
+            return;
         list_insert(&editline->text, editline->text.size-1, text, text_size);
         list_add(&editline->text_characters_sizes, &text_size, sizeof(Uint32));
         if (editline->text_texture != NULL)

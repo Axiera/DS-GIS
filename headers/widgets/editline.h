@@ -21,10 +21,13 @@ typedef struct {
     Uint32 hint_texture_width;
     Uint32 text_texture_width;
     Uint32 text_texture_height;
+    Uint16 max_text_char_size;
     Uint8 active;
 } editline_t;
 
-editline_t* editline_init(const char* hint_text, SDL_Renderer* renderer);
+editline_t* editline_init(const char* hint_text,
+                          SDL_Renderer* renderer,
+                          Uint16 max_text_char_size);
 void editline_deinit(editline_t* editline);
 void editline_draw(const editline_t* editline,
                    SDL_Renderer* renderer,

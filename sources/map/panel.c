@@ -73,10 +73,12 @@ static void cancel(void* data) {
 }
 
 static void init_create_marker(panel_t* panel, SDL_Renderer* renderer) {
-    panel->create_marker.editline = editline_init("name", renderer);
+    panel->create_marker.editline =
+        editline_init("name", renderer, CONFIG_MARKER_NAME_MAX);
     panel->create_marker.editfield = editfield_init(
         "description",
         renderer,
+        CONFIG_MARKER_DESCRIPTION_MAX,
         CONFIG_MAP_PANEL_WIDTH - 2*PANEL_INDENT
     );
     panel->create_marker.button_cancel =

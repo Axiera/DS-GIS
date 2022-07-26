@@ -15,6 +15,7 @@ static SDL_Texture* render_text(SDL_Renderer* renderer,
 
 editfield_t* editfield_init(const char* hint_text,
                             SDL_Renderer* renderer,
+                            Uint16 max_text_char_size,
                             int width) {
     editfield_t* editfield = malloc(sizeof(editfield_t));
     if (editfield == NULL) {
@@ -51,6 +52,7 @@ editfield_t* editfield_init(const char* hint_text,
 
     editfield->text_texture_width = 0;
     editfield->text_texture_height = 0;
+    editfield->max_text_char_size = max_text_char_size;
     editfield->active = 0;
 
     return editfield;
@@ -131,6 +133,8 @@ void editfield_handle_event(editfield_t* editfield,
     else if (editfield->active && event->type == SDL_TEXTINPUT) {
         const char* text = event->text.text;
         Uint32 text_size = strlen(text);
+        if (editfield->text.size-1 + text_size > editfield->max_text_char_size)
+            return;
         list_insert(&editfield->text, editfield->text.size-1, text, text_size);
         list_add(&editfield->text_characters_sizes, &text_size, sizeof(Uint32));
         if (editfield->text_texture != NULL)
