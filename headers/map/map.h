@@ -13,6 +13,7 @@
 #include "../isbelong.h"
 #include "../list.h"
 #include "../widgets/colorpicker.h"
+#include "../widgets/textarea.h"
 #include "marker.h"
 #include "panel.h"
 
@@ -37,6 +38,7 @@ typedef struct {
     list_t markers;
     SDL_Renderer* renderer;
     panel_t* panel;
+    textarea_t* marker_name_hover;
     unsigned int is_loaded : 1;
     pix_pos_t center;
     tile_t center_tile;

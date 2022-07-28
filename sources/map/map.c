@@ -21,7 +21,14 @@ static void copy_map_grid_item(map_t* map,
                                int source_i,
                                int source_j);
 static void update_marker_grid_item(map_t* map, int i, int j);
-static void draw_markers(const map_t* map, int i, int j, const SDL_Rect* area);
+static void draw_markers(const map_t* map, const SDL_Rect* area);
+static void draw_marker(SDL_Renderer* renderer,
+                        int x,
+                        int y,
+                        int color,
+                        int indent,
+                        const Uint8* pixels,
+                        const SDL_Rect* map_area);
 static void on_panel_executed(void* data);
 
 /* ---------------------- header functions definition ---------------------- */
@@ -46,6 +53,7 @@ map_t* map_init(SDL_Renderer* renderer, geo_pos_t map_center, Uint8 zoom) {
     list_init(&map->markers, MARKERS_LIST_ALLOCATION_PORTION);
     map->renderer = renderer;
     map->panel = NULL;
+    map->marker_name_hover = textarea_init();
     map->is_loaded = 0;
     map->center = to_pix(map_center);
     map->center_tile.MAP_TILE_LOADED_EVENT = SDL_RegisterEvents(1);
@@ -69,9 +77,15 @@ void map_deinit(map_t* map) {
         for (int j = 0; j < MAP_GRID_SIZE; j++)
             free_map_grid_item(map, i, j);
     }
+    for (int i = 0; i < map->markers.size; i += sizeof(marker_t)) {
+        marker_t* marker = list_get(&map->markers, i);
+        free(marker->name);
+        free(marker->description);
+    }
     list_free(&map->markers);
     if (map->panel != NULL)
         panel_deinit(map->panel);
+    textarea_deinit(map->marker_name_hover);
     free(map);
 }
 
@@ -132,13 +146,7 @@ void map_draw(const map_t* map, SDL_Rect area) {
         }
     }
 
-    for (int i = 0; i < MAP_GRID_SIZE; i++) {
-        for (int j = 0; j < MAP_GRID_SIZE; j++) {
-            if (!map->grid_loading_status[i][j])
-                continue;
-            draw_markers(map, i, j, &area);
-        }
-    }
+    draw_markers(map, &area);
 
     panel_t* panel = map->panel;
     if (panel == NULL || panel->parameters.type != PANEL_CREATE_MARKER)
@@ -497,7 +505,7 @@ static void update_marker_grid_item(map_t* map, int i, int j) {
     });
 }
 
-static void draw_markers(const map_t* map, int i, int j, const SDL_Rect* area) {
+static void draw_markers(const map_t* map, const SDL_Rect* area) {
     pix_pos_t grid_begin = {
         .x = (map->center_tile.x - MAP_GRID_SIZE/2) * map->center_tile.size,
         .y = (map->center_tile.y - MAP_GRID_SIZE/2) * map->center_tile.size
@@ -505,55 +513,132 @@ static void draw_markers(const map_t* map, int i, int j, const SDL_Rect* area) {
     Uint32 scale = map->center_tile.size / MAP_TILE_SIZE;
     Sint32 begin_x = area->x + area->w/2 - (map->center.x-grid_begin.x)/scale;
     Sint32 begin_y = area->y + area->h/2 - (map->center.y-grid_begin.y)/scale;
+    int mouse_x, mouse_y;
+    SDL_GetMouseState(&mouse_x, &mouse_y);
 
-    const list_t* list = &map->marker_grid[i][j];
-    for (int k = 0; k < list->size; k += sizeof(marker_t*)) {
-        marker_t* marker = *(marker_t**)list_get(list, k);
+    const marker_t* hovered_marker = NULL;
+    int hovered_marker_x, hovered_marker_y;
 
-        Sint32 x = begin_x + j*MAP_TILE_SIZE
-            + (marker->x % map->center_tile.size)/scale
-            - MARKER_PIXEL_SIZE/2;
-        Sint32 y = begin_y + i*MAP_TILE_SIZE
-            + (marker->y % map->center_tile.size)/scale
-            - MARKER_PIXEL_SIZE/2;
-        if (x + MARKER_PIXEL_SIZE < area->x || x >= area->x + area->w)
-            continue;
-        if (y + MARKER_PIXEL_SIZE < area->y || y >= area->y + area->h)
-            continue;
+    for (int i = 0; i < MAP_GRID_SIZE; i++) {
+        for (int j = 0; j < MAP_GRID_SIZE; j++) {
+            if (!map->grid_loading_status[i][j])
+                continue;
+            const list_t* list = &map->marker_grid[i][j];
+            for (int k = 0; k < list->size; k += sizeof(marker_t*)) {
+                marker_t* marker = *(marker_t**)list_get(list, k);
 
-        int indent;
-        if (map->center_tile.zoom >= 17)
-            indent = 0;
-        else if (map->center_tile.zoom >= 15)
-            indent = 5;
-        else if (map->center_tile.zoom >= 13)
-            indent = 6;
-        else if (map->center_tile.zoom >= MAP_MIN_ZOOM)
-            indent = 7;
+                Sint32 x = begin_x + j*MAP_TILE_SIZE
+                    + (marker->x % map->center_tile.size)/scale
+                    - MARKER_PIXEL_SIZE/2;
+                Sint32 y = begin_y + i*MAP_TILE_SIZE
+                    + (marker->y % map->center_tile.size)/scale
+                    - MARKER_PIXEL_SIZE/2;
+                if (x + MARKER_PIXEL_SIZE < area->x || x >= area->x + area->w)
+                    continue;
+                if (y + MARKER_PIXEL_SIZE < area->y || y >= area->y + area->h)
+                    continue;
+                SDL_Rect marker_area =
+                    { x, y, MARKER_PIXEL_SIZE, MARKER_PIXEL_SIZE };
 
-        int pixel_i_begin = y + indent < area->y ? area->y - y : indent;
-        int pixel_j_begin = x + indent < area->x ? area->x - x : indent;
-        int pixel_i_end = y + MARKER_PIXEL_SIZE - indent > area->y + area->h ?
-            area->y + area->h - y : MARKER_PIXEL_SIZE - indent;
-        int pixel_j_end = x + MARKER_PIXEL_SIZE - indent > area->x + area->w ?
-            area->x + area->w - x : MARKER_PIXEL_SIZE - indent;
+                int indent;
+                if (map->center_tile.zoom >= 17)
+                    indent = 0;
+                else if (map->center_tile.zoom >= 15)
+                    indent = 5;
+                else if (map->center_tile.zoom >= 13)
+                    indent = 6;
+                else if (map->center_tile.zoom >= MAP_MIN_ZOOM)
+                    indent = 7;
 
-        const Uint8* MARKER_PIXELS = marker_get_pixels();
-        SDL_Color color =
-            colorpicker_get_color(&(colorpicker_t){marker->color});
-        SDL_SetRenderDrawColor(
-            map->renderer,
-            color.r,
-            color.g,
-            color.b,
-            color.a
-        );
-        for (int pi = pixel_i_begin; pi < pixel_i_end; pi++) {
-            for (int pj = pixel_j_begin; pj < pixel_j_end; pj++) {
-                const Uint8* pixel = MARKER_PIXELS + pi*MARKER_PIXEL_SIZE + pj;
-                if (*pixel)
-                    SDL_RenderDrawPoint(map->renderer, x+pj, y+pi);
+                const Uint8* MARKER_PIXELS = marker_get_pixels();
+                if (hovered_marker == NULL && indent < 6 &&
+                        is_belong(mouse_x, mouse_y, &marker_area)) {
+                    if (indent == 0)
+                        MARKER_PIXELS = marker_get_pixels_hovered();
+                    else if (indent == 5)
+                        indent = 0;
+                    hovered_marker = marker;
+                    hovered_marker_x = x + MARKER_PIXEL_SIZE/2;
+                    hovered_marker_y = y + MARKER_PIXEL_SIZE/2;
+                }
+
+                draw_marker(
+                    map->renderer,
+                    x,
+                    y,
+                    marker->color,
+                    indent,
+                    MARKER_PIXELS,
+                    area
+                );
             }
+        }
+    }
+
+    if (hovered_marker == NULL)
+        return;
+    textarea_set_text(
+        map->marker_name_hover,
+        map->renderer,
+        hovered_marker->name,
+        CONFIG_MARKER_NAME_MAX_WIDTH
+    );
+    SDL_Rect name_area = {
+        .x = hovered_marker_x + MARKER_PIXEL_SIZE/2 + CONFIG_MARKER_NAME_INDENT,
+        .y = hovered_marker_y
+            - MARKER_PIXEL_SIZE/2
+            - CONFIG_MARKER_NAME_INDENT
+            - map->marker_name_hover->h
+            - 2*CONFIG_MARKER_NAME_VERTICAL_INDENT,
+        .w = map->marker_name_hover->w + 2*CONFIG_MARKER_NAME_HORIZONTAL_INDENT,
+        .h = map->marker_name_hover->h + 2*CONFIG_MARKER_NAME_VERTICAL_INDENT
+    };
+    int name_x_end = name_area.x + name_area.w;
+    int map_x_end = area->x + area->w;
+    if (name_x_end + CONFIG_MARKER_NAME_INDENT > map_x_end)
+        name_area.x -= name_x_end + CONFIG_MARKER_NAME_INDENT - map_x_end;
+    if (name_area.y < area->y) {
+        name_area.y = hovered_marker_y
+            + MARKER_PIXEL_SIZE/2
+            + CONFIG_MARKER_NAME_INDENT;
+    }
+    SDL_SetRenderDrawColor(map->renderer, 255, 255, 255, 255);
+    SDL_RenderFillRect(map->renderer, &name_area);
+    SDL_SetRenderDrawColor(map->renderer, CONFIG_COLOR_BORDER);
+    SDL_RenderDrawRect(map->renderer, &name_area);
+    textarea_draw(
+        map->marker_name_hover,
+        map->renderer,
+        name_area.x + CONFIG_MARKER_NAME_HORIZONTAL_INDENT,
+        name_area.y + CONFIG_MARKER_NAME_VERTICAL_INDENT,
+        map->marker_name_hover->h
+    );
+}
+
+static void draw_marker(SDL_Renderer* renderer,
+                        int x,
+                        int y,
+                        int color,
+                        int indent,
+                        const Uint8* pixels,
+                        const SDL_Rect* map_area) {
+    int pixel_i_begin = y + indent < map_area->y ? map_area->y - y : indent;
+    int pixel_j_begin = x + indent < map_area->x ? map_area->x - x : indent;
+    int pixel_i_end =
+        y + MARKER_PIXEL_SIZE - indent > map_area->y + map_area->h ?
+        map_area->y + map_area->h - y : MARKER_PIXEL_SIZE - indent;
+    int pixel_j_end =
+        x + MARKER_PIXEL_SIZE - indent > map_area->x + map_area->w ?
+        map_area->x + map_area->w - x : MARKER_PIXEL_SIZE - indent;
+
+    SDL_Color c = colorpicker_get_color(&(colorpicker_t){color});
+    SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
+
+    for (int pi = pixel_i_begin; pi < pixel_i_end; pi++) {
+        for (int pj = pixel_j_begin; pj < pixel_j_end; pj++) {
+            const Uint8* pixel = pixels + pi*MARKER_PIXEL_SIZE + pj;
+            if (*pixel)
+                SDL_RenderDrawPoint(renderer, x+pj, y+pi);
         }
     }
 }
@@ -569,11 +654,30 @@ static void on_panel_executed(void* data) {
     }
 
     if (panel->parameters.type == PANEL_CREATE_MARKER) {
+        const char* name = editline_get_text(panel->create_marker.editline);
+        const char* description =
+            editfield_get_text(panel->create_marker.editfield);
+
         marker_t marker = {
+            .name = NULL,
+            .description = NULL,
             .x = map->center.x,
             .y = map->center.y,
-            .color = panel->create_marker.colorpicker.color
+            .color = panel->create_marker.colorpicker.color,
+            .name_length = strlen(name),
+            .description_length = strlen(description)
         };
+        marker.name = malloc(marker.name_length + 1);
+        marker.description = malloc(marker.description_length + 1);
+        if (marker.name == NULL || marker.description == NULL) {
+            free(marker.name);
+            free(marker.description);
+            panel_deinit(map->panel);
+            map->panel = NULL;
+            return;
+        }
+        strcpy(marker.name, name);
+        strcpy(marker.description, description);
         list_add(&map->markers, &marker, sizeof(marker_t));
 
         Uint32 tile_x = marker.x / map->center_tile.size;

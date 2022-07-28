@@ -18,10 +18,33 @@ static const Uint8 MARKER_PIXELS[MARKER_PIXEL_SIZE * MARKER_PIXEL_SIZE] = {
     0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0
 };
 
+static const Uint8
+MARKER_PIXELS_HOVERED[MARKER_PIXEL_SIZE * MARKER_PIXEL_SIZE] = {
+    0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,
+    0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0,
+    0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0,
+    0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+    0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+    0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+    0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0,
+    0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0,
+    0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0
+};
+
 /* ---------------------- header functions definition ---------------------- */
 
 const Uint8* marker_get_pixels(void) {
     return MARKER_PIXELS;
+}
+
+const Uint8* marker_get_pixels_hovered(void) {
+    return MARKER_PIXELS_HOVERED;
 }
 
 void marker_cut(list_t* dstlist, const list_t* srclist, const SDL_Rect* area) {
