@@ -15,13 +15,15 @@ static void handle_event_create_marker(panel_t* panel,
                                        int x,
                                        int y,
                                        int h);
+static void create_marker_on_create_clicked(void* data);
 
 /* ---------------------- header functions definition ---------------------- */
 
 panel_t* panel_init(int type,
                     SDL_Renderer* renderer,
                     void* map,
-                    void (*on_executed)(void*)) {
+                    void (*on_executed)(void*),
+                    const char* (*check)(void*)) {
     panel_t* panel = malloc(sizeof(panel_t));
     if (panel == NULL) {
         SDL_SetError("memory allocation failed\n%s()", __func__);
@@ -32,6 +34,7 @@ panel_t* panel_init(int type,
     panel->parameters.canceled = 0;
     panel->parameters.map = map;
     panel->parameters.on_executed = on_executed;
+    panel->parameters.check = check;
 
     if (type == PANEL_CREATE_MARKER)
         init_create_marker(panel, renderer);
@@ -84,7 +87,7 @@ static void init_create_marker(panel_t* panel, SDL_Renderer* renderer) {
     panel->create_marker.button_cancel =
         button_init("Cancel", renderer, cancel, panel);
     panel->create_marker.button_create =
-        button_init("Create", renderer, panel->parameters.on_executed, panel);
+        button_init("Create", renderer, create_marker_on_create_clicked, panel);
     panel->create_marker.colorpicker.color = 0;
 }
 
@@ -175,4 +178,13 @@ static void handle_event_create_marker(panel_t* panel,
         editfield, event, renderer, x, editfield_y, w, editfield_h);
     button_handle_event(button_create, event, button_create_x, button_create_y);
     button_handle_event(button_cancel, event, button_cancel_x, button_cancel_y);
+}
+
+static void create_marker_on_create_clicked(void* data) {
+    panel_t* panel = data;
+    const char* error_message = panel->parameters.check(panel);
+    if (error_message == NULL)
+        panel->parameters.on_executed(panel);
+    else
+        MessageBox(GetActiveWindow(), error_message, NULL, MB_OK);
 }

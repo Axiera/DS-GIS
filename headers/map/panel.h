@@ -2,6 +2,8 @@
 #define PANELS_H
 
 #include <SDL2/SDL.h>
+#include <windows.h>
+
 #include "../widgets/editline.h"
 #include "../widgets/editfield.h"
 #include "../widgets/button.h"
@@ -17,6 +19,7 @@ typedef struct {
     Sint16 canceled;
     void* map;
     void (*on_executed)(void*);
+    const char* (*check)(void*);
 } panel_parameters_t;
 
 typedef struct {
@@ -36,7 +39,8 @@ typedef union {
 panel_t* panel_init(int type,
                     SDL_Renderer* renderer,
                     void* map,
-                    void (*on_executed)(void*));
+                    void (*on_executed)(void*),
+                    const char* (*check)(void*));
 void panel_deinit(panel_t* panel);
 void panel_draw(const panel_t* panel,
                 SDL_Renderer* renderer,

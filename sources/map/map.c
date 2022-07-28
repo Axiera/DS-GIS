@@ -30,6 +30,7 @@ static void draw_marker(SDL_Renderer* renderer,
                         const Uint8* pixels,
                         const SDL_Rect* map_area);
 static void on_panel_executed(void* data);
+static const char* on_panel_check(void* data);
 
 /* ---------------------- header functions definition ---------------------- */
 
@@ -250,9 +251,13 @@ void map_handle_event(map_t* map,
             pix_pos_t new_center =
                 to_pix_from_mouse(map, event->button.x, event->button.y, &area);
             move_to(map, new_center);
-            void (*on_executed)(void*) = on_panel_executed;
-            map->panel =
-                panel_init(PANEL_CREATE_MARKER, renderer, map, on_executed);
+            map->panel = panel_init(
+                PANEL_CREATE_MARKER,
+                renderer,
+                map,
+                on_panel_executed,
+                on_panel_check
+            );
         }
     }
 }
@@ -689,4 +694,31 @@ static void on_panel_executed(void* data) {
 
     panel_deinit(map->panel);
     map->panel = NULL;
+}
+
+static const char* on_panel_check(void* data) {
+    panel_t* panel = data;
+    map_t* map = panel->parameters.map;
+
+    if (panel->parameters.type == PANEL_CREATE_MARKER) {
+        const char* name = editline_get_text(panel->create_marker.editline);
+        if (!strlen(name))
+            return "Empty marker name";
+
+        Sint32 new_marker_x = map->center.x;
+        Sint32 new_marker_y = map->center.y;
+        for (int i = 0; i < map->markers.size; i += sizeof(marker_t)) {
+            marker_t* marker = list_get(&map->markers, i);
+            int delta_x = new_marker_x - marker->x;
+            int delta_y = new_marker_y - marker->y;
+            if (delta_x < 0)
+                delta_x = -delta_x;
+            if (delta_y < 0)
+                delta_y = -delta_y;
+            if (delta_x < MARKER_PIXEL_SIZE && delta_y < MARKER_PIXEL_SIZE)
+                return "New marker intersects with another marker";
+        }
+    }
+
+    return NULL;
 }
